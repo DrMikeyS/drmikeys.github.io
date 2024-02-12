@@ -7,7 +7,40 @@
     <title>City Selector</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .waffle-chart-container {
+            display: flex;
+            flex-wrap: wrap;
+        }
 
+        .waffle-chart {
+            display: grid;
+            margin: 10px;
+        }
+
+        .waffle-block {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #333;
+        }
+
+        .year-label {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .wet-day {
+            background-color: blue;
+        }
+
+        .showery-day {
+            background-color: lightblue;
+        }
+
+        .dry-day {
+            background-color: yellow;
+        }
+    </style>
 </head>
 
 <body>
@@ -27,18 +60,48 @@
 
                 <button id="getWeatherBtn1" class="btn btn-primary mt-3">Get Multiple Historic Weather</button>
 
-                <p id="tripInfo"></p>
+
+                <table class="table" id="tripInfoTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Weather Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Typical Daily High Range</td>
+                            <td id="typicalDailyHighRange"></td>
+                        </tr>
+                        <tr>
+                            <td>Max Daily High</td>
+                            <td id="maxDailyHigh"></td>
+                        </tr>
+                        <tr>
+                            <td>Min Daily High</td>
+                            <td id="minDailyHigh"></td>
+                        </tr>
+                        <tr>
+                            <td>Typical Dry Days</td>
+                            <td id="typicalDryDays"></td>
+                        </tr>
+                        <tr>
+                            <td>Typical Days with Shower</td>
+                            <td id="typicalDaysWithShower"></td>
+                        </tr>
+                        <tr>
+                            <td>Typical Rainy Days</td>
+                            <td id="typicalRainyDays"></td>
+                        </tr>
+                    </tbody>
+                </table>
 
                 <div id="temperatureChartContainer" class="mt-3">
                     <canvas id="temperatureChart"></canvas>
                 </div>
-                <div id="pieChartContainer" class="mt-3">
-                    <canvas id="pieChart"></canvas>
-                </div>
 
-
-                <div id="rainfallChartContainer" class="mt-3">
-                    <canvas id="rainfallChart"></canvas>
+                <div id="barChartContainer" class="mt-3">
+                    <canvas id="barChart"></canvas>
                 </div>
 
             </div>

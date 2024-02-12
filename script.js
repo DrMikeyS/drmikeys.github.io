@@ -43,11 +43,17 @@ function selectCity(city) {
     selectedCityLatitude = city.latitude;
     selectedCityLongitude = city.longitude;
 
-    // You can perform any actions here with the selected city
+    // Set the value of the city input to the selected city's name
+    cityInput.value = `${city.name}, ${city.country}`;
+
+    // You can perform any additional actions here with the selected city
 
     // Remove city options from the DOM
-    cityOptions.parentNode.removeChild(cityOptions);
+    while (cityOptions.firstChild) {
+        cityOptions.removeChild(cityOptions.firstChild);
+    }
 }
+
 
 // Event listener for input changes
 cityInput.addEventListener('input', (event) => {
@@ -67,7 +73,7 @@ function formatDate(date) {
 }
 
 async function fetchHistoricWeatherForMultipleYears(latitude, longitude, startDate, endDate) {
-    const years = [startDate.getFullYear(), startDate.getFullYear() - 1, startDate.getFullYear() - 2, startDate.getFullYear() - 3, startDate.getFullYear() - 4];
+    const years = [startDate.getFullYear(), startDate.getFullYear() - 1, startDate.getFullYear() - 2, startDate.getFullYear() - 3, startDate.getFullYear() - 4, startDate.getFullYear() - 5, startDate.getFullYear() - 6, startDate.getFullYear() - 7, startDate.getFullYear() - 8, startDate.getFullYear() - 9];
     const promises = years.map(year => {
         const startOfYear = new Date(year, startDate.getMonth(), startDate.getDate());
         const endOfYear = new Date(year, endDate.getMonth(), endDate.getDate());
@@ -133,11 +139,14 @@ function calculateExpectedTemperatureRange(dailyMaxTemperatures) {
     const standardDeviation = Math.sqrt(variance);
 
     // Calculate expected range
-    const lowerRange = Math.round(medianTemperature - standardDeviation);
-    const upperRange = Math.round(medianTemperature + standardDeviation);
+    const lowerRange = medianTemperature - standardDeviation;
+    const upperRange = medianTemperature + standardDeviation;
 
     return { lowerRange, upperRange };
 }
+
+
+
 
 
 // Event listener for "Get Historic Weather" button click
@@ -183,26 +192,45 @@ getWeatherBtn1.addEventListener('click', async () => {
         // Render temperature chart
         renderTemperatureChartForMultipleYears(allDates, allMaxTemperatures);
 
-        // Render rainfall chart
-        renderRainfallChartForMultipleYears(allDates, allRainfalls);
+        displayTripInfo(expectedTemperatureRange, averageRainfallCategories, allMaxTemperatures);
 
-        renderPieChart(averageRainfallCategories);
-
-        displayTripInfo(expectedTemperatureRange, averageRainfallCategories);
-
+        renderStackedBarChartForYears(allRainfalls, historicWeatherData)
     } catch (error) {
         console.error('Error fetching historic weather data:', error);
     }
 });
+
+// Function to calculate expected daily max temperature range
+function calculateMaxTemperatureRange(dailyMaxTemperatures) {
+    // Flatten the array of temperatures
+    const allTemperatures = dailyMaxTemperatures.flat();
+    console.log(allTemperatures)
+    // Find the maximum and minimum temperatures
+    const maxTemperature = Math.max(...allTemperatures);
+    const minTemperature = Math.min(...allTemperatures);
+
+    return { minTemperature, maxTemperature };
+}
+
+
 // Function to display trip information
-function displayTripInfo(temperatureRange, rainfallCategories) {
-    const tripInfoElement = document.getElementById('tripInfo');
-    const dailyHigh = `${temperatureRange.lowerRange.toFixed(0)}-${temperatureRange.upperRange.toFixed(0)}°C`;
+function displayTripInfo(temperatureRange, rainfallCategories, allMaxTemperatures) {
+    const expectedTemperatureRange = calculateMaxTemperatureRange(allMaxTemperatures)
+    const tripInfoTableElement = document.getElementById('tripInfoTable');
+    const dailyHigh = `${temperatureRange.lowerRange.toFixed(1)}-${temperatureRange.upperRange.toFixed(1)}°C`;
     const dryDays = rainfallCategories.Dry;
     const showerDays = rainfallCategories.Shower;
     const rainyDays = rainfallCategories.Rainy;
 
-    tripInfoElement.textContent = `At that time of year, you can expect a daily high of between ${dailyHigh}. There would typically be ${dryDays} dry days, ${showerDays} days with showers, and ${rainyDays} days that are rainy.`;
+    // Populate table cells
+    document.getElementById('typicalDailyHighRange').textContent = dailyHigh;
+    document.getElementById('maxDailyHigh').textContent = `${expectedTemperatureRange.maxTemperature}°C`;
+    document.getElementById('minDailyHigh').textContent = `${expectedTemperatureRange.minTemperature}°C`;
+    document.getElementById('typicalDryDays').textContent = dryDays;
+    document.getElementById('typicalDaysWithShower').textContent = showerDays;
+    document.getElementById('typicalRainyDays').textContent = rainyDays;
+
+    tripInfoTableElement.style.display = 'block';
 }
 
 // Function to generate a gradient of colors based on a single color
@@ -216,7 +244,7 @@ function generateColorGradient(baseColor, numSteps) {
     }
     return colors;
 }
-
+var temperatureChart; // Declare temperatureChart variable
 // Function to render temperature chart with data for multiple years
 // Function to render temperature chart with data for multiple years
 function renderTemperatureChartForMultipleYears(dates, temperatures) {
@@ -227,7 +255,15 @@ function renderTemperatureChartForMultipleYears(dates, temperatures) {
     const numYears = temperatures.length;
     const baseColor = { r: 255, g: 99, b: 132 }; // Base color for the gradient
     const gradientColors = generateColorGradient(baseColor, numYears);
-    const temperatureChart = new Chart(ctx, {
+
+
+    if (temperatureChart) {
+        temperatureChart.clear();
+        temperatureChart.destroy();
+    }
+
+
+    temperatureChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: Array.from({ length: numDataPoints }, (_, index) => index), // Use indices as labels
@@ -267,80 +303,98 @@ function renderTemperatureChartForMultipleYears(dates, temperatures) {
 }
 
 
-// Function to render rainfall chart with data for multiple years
-function renderRainfallChartForMultipleYears(dates, rainfalls) {
-    const combinedDates = dates.flat().map(date => new Date(date)); // Combine dates from all years
-    const parsedDates = [...new Set(combinedDates)]; // Use set to remove duplicates and convert back to array
-    const numDataPoints = parsedDates.length; // Number of data points across all years
-    const ctx = document.getElementById('rainfallChart').getContext('2d');
-    const numYears = rainfalls.length;
-    const baseColor = { r: 54, g: 162, b: 235 }; // Base color for the gradient
-    const gradientColors = generateColorGradient(baseColor, numYears);
-    const rainfallChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: Array.from({ length: numDataPoints }, (_, index) => index), // Use indices as labels
-            datasets: rainfalls.map((rain, index) => ({
-                label: `${new Date(dates[index][0]).getFullYear()}`,
-                data: rain,
-                backgroundColor: gradientColors[index],
-                borderColor: `rgba(54, 162, 235, 1)`,
-            }))
-        },
-        options: {
-            plugins: {
-                legend: {
-                    display: false,
-                }
-            },
-            scales: {
-                y: {
-                    title: {
-                        display: true,
-                        text: 'precipitation_hours',
-                    },
-                },
-                x: {
-                    title: {
-                        display: false,
-                    },
-                    ticks: {
-                        display: false, // Set display to false to remove x-axis labels
-                    },
-                    min: 0, // Set the minimum value of x-axis to 0
-                    max: rainfalls[0].length - 1, // Set the maximum value of x-axis to the last index
-                }
-            },
-        },
+// Function to group wet, dry, and showery days for each year
+function groupRainfallDays(rainfallData) {
+    const groupedData = [];
+
+    rainfallData.forEach(yearData => {
+        let wetDays = 0;
+        let showeryDays = 0;
+        let dryDays = 0;
+
+        yearData.forEach(rainfallHours => {
+            if (rainfallHours >= 6) {
+                wetDays++;
+            } else if (rainfallHours >= 2) {
+                showeryDays++;
+            } else {
+                dryDays++;
+            }
+        });
+
+        groupedData.push({ wetDays, showeryDays, dryDays });
     });
+
+    return groupedData;
 }
 
-// Function to render pie chart for average rainfall categories
-function renderPieChart(averageRainfallCategories) {
-    const ctx = document.getElementById('pieChart').getContext('2d');
-    const labels = Object.keys(averageRainfallCategories);
-    const data = Object.values(averageRainfallCategories);
 
-    const pieChart = new Chart(ctx, {
-        type: 'pie',
+// Function to render stacked bar chart for weather distribution of each year
+function renderStackedBarChartForYears(rainfallData, historicWeatherData) {
+    const barChartContainer = document.getElementById('barChartContainer');
+    barChartContainer.innerHTML = ''; // Clear previous charts
+
+    const groupedData = groupRainfallDays(rainfallData);
+    const years = historicWeatherData.map(({ year }) => year); // Extract years from historic weather data
+
+    const labels = years.map(year => year.toString()); // Convert years to strings for labels
+    const wetData = groupedData.map(({ wetDays }) => wetDays);
+    const showeryData = groupedData.map(({ showeryDays }) => showeryDays);
+    const dryData = groupedData.map(({ dryDays }) => dryDays);
+
+    const ctx = document.createElement('canvas');
+    barChartContainer.appendChild(ctx);
+
+    new Chart(ctx, {
+        type: 'bar',
         data: {
             labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
-            }]
+            datasets: [
+                {
+                    label: 'Wet Days',
+                    data: wetData,
+                    backgroundColor: '#57a0e5'
+                },
+                {
+                    label: 'Showery Days',
+                    data: showeryData,
+                    backgroundColor: '#b6d4f0'
+                },
+                {
+                    label: 'Dry Days',
+                    data: dryData,
+                    backgroundColor: '#f7d06b'
+                }
+            ]
         },
         options: {
             plugins: {
                 title: {
                     display: true,
-                    text: 'Average Rainfall Categories',
-                    fontSize: 16,
+                    text: 'Weather Distribution by Year'
                 },
                 legend: {
-                    position: 'right',
+                    display: true,
+                    position: 'top'
                 }
             },
+            scales: {
+                x: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Year'
+                    }
+                },
+                y: {
+                    stacked: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Days'
+                    }
+                }
+            }
         }
     });
 }
+
