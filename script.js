@@ -55,6 +55,7 @@ cityInput.addEventListener('input', (event) => {
     if (cityName.length >= 3) {
         fetchCities(cityName);
     }
+
 });
 
 // Function to format date as YYYY-MM-DD for API call
