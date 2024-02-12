@@ -66,13 +66,12 @@ function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
-// Function to fetch historic weather data for multiple years
 async function fetchHistoricWeatherForMultipleYears(latitude, longitude, startDate, endDate) {
     const years = [startDate.getFullYear(), startDate.getFullYear() - 1, startDate.getFullYear() - 2, startDate.getFullYear() - 3, startDate.getFullYear() - 4];
     const promises = years.map(year => {
         const startOfYear = new Date(year, startDate.getMonth(), startDate.getDate());
         const endOfYear = new Date(year, endDate.getMonth(), endDate.getDate());
-        const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${startOfYear.toISOString().split('T')[0]}&end_date=${endOfYear.toISOString().split('T')[0]}&daily=temperature_2m_max,rain_sum`;
+        const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${startOfYear.toISOString().split('T')[0]}&end_date=${endOfYear.toISOString().split('T')[0]}&daily=temperature_2m_max,precipitation_hours`;
         console.log(url)
         return fetch(url)
             .then(response => response.json())
@@ -81,6 +80,66 @@ async function fetchHistoricWeatherForMultipleYears(latitude, longitude, startDa
 
     return Promise.all(promises);
 }
+
+// Function to categorize rainfall duration
+function categorizeRainfallDuration(rainfallHours) {
+    if (rainfallHours < 2) {
+        return 'Dry';
+    } else if (rainfallHours < 6) {
+        return 'Shower';
+    } else {
+        return 'Rainy';
+    }
+}
+
+// Function to calculate the average number of days falling into each category
+function calculateAverageRainfallCategories(historicWeatherData) {
+    const totalYears = historicWeatherData.length;
+    const rainfallCategories = {
+        Dry: 0,
+        Shower: 0,
+        Rainy: 0
+    };
+
+    historicWeatherData.forEach(({ data }) => {
+        data.daily.precipitation_hours.forEach(rainfallHours => {
+            const category = categorizeRainfallDuration(rainfallHours);
+            rainfallCategories[category]++;
+        });
+    });
+
+    // Calculate averages
+    const averageRainfallCategories = {};
+    Object.keys(rainfallCategories).forEach(category => {
+        averageRainfallCategories[category] = rainfallCategories[category] / totalYears;
+    });
+
+    return averageRainfallCategories;
+}
+
+// Function to calculate expected daily max temperature range
+function calculateExpectedTemperatureRange(dailyMaxTemperatures) {
+    // Calculate median daily max temperature
+    const sortedTemperatures = dailyMaxTemperatures.flat().sort((a, b) => a - b);
+    const medianIndex = Math.floor(sortedTemperatures.length / 2);
+    const medianTemperature = sortedTemperatures.length % 2 === 0 ?
+        (sortedTemperatures[medianIndex - 1] + sortedTemperatures[medianIndex]) / 2 :
+        sortedTemperatures[medianIndex];
+
+    // Calculate standard deviation of daily max temperatures
+    const meanTemperature = dailyMaxTemperatures.flat().reduce((acc, val) => acc + val, 0) / dailyMaxTemperatures.flat().length;
+    const squaredDifferences = dailyMaxTemperatures.flat().map(temp => Math.pow(temp - meanTemperature, 2));
+    const variance = squaredDifferences.reduce((acc, val) => acc + val, 0) / squaredDifferences.length;
+    const standardDeviation = Math.sqrt(variance);
+
+    // Calculate expected range
+    const lowerRange = Math.round(medianTemperature - standardDeviation);
+    const upperRange = Math.round(medianTemperature + standardDeviation);
+
+    return { lowerRange, upperRange };
+}
+
+
 // Event listener for "Get Historic Weather" button click
 getWeatherBtn1.addEventListener('click', async () => {
     const plannedStartDate = plannedStartDateInput.value;
@@ -103,23 +162,48 @@ getWeatherBtn1.addEventListener('click', async () => {
         const historicWeatherData = await fetchHistoricWeatherForMultipleYears(selectedCityLatitude, selectedCityLongitude, APIStartDate, APIEndDate);
         console.log('Historic weather data:', historicWeatherData);
 
+        // Calculate average number of days falling into each rainfall category
+        const averageRainfallCategories = calculateAverageRainfallCategories(historicWeatherData);
+        console.log('Average Rainfall Categories:', averageRainfallCategories);
+
+
+
         // Extract all dates for all years
         const allDates = historicWeatherData.map(({ year, data }) => data.daily.time);
 
         // Extract data for charts
         const allMaxTemperatures = historicWeatherData.map(({ year, data }) => data.daily.temperature_2m_max);
-        const allRainfalls = historicWeatherData.map(({ year, data }) => data.daily.rain_sum);
+        const allRainfalls = historicWeatherData.map(({ year, data }) => data.daily.precipitation_hours);
+
+        // Calculate expected daily max temperature range
+        const expectedTemperatureRange = calculateExpectedTemperatureRange(allMaxTemperatures);
+        console.log('Expected Daily Max Temperature Range:', expectedTemperatureRange);
+
 
         // Render temperature chart
         renderTemperatureChartForMultipleYears(allDates, allMaxTemperatures);
 
         // Render rainfall chart
         renderRainfallChartForMultipleYears(allDates, allRainfalls);
+
+        renderPieChart(averageRainfallCategories);
+
+        displayTripInfo(expectedTemperatureRange, averageRainfallCategories);
+
     } catch (error) {
         console.error('Error fetching historic weather data:', error);
     }
 });
+// Function to display trip information
+function displayTripInfo(temperatureRange, rainfallCategories) {
+    const tripInfoElement = document.getElementById('tripInfo');
+    const dailyHigh = `${temperatureRange.lowerRange.toFixed(0)}-${temperatureRange.upperRange.toFixed(0)}°C`;
+    const dryDays = rainfallCategories.Dry;
+    const showerDays = rainfallCategories.Shower;
+    const rainyDays = rainfallCategories.Rainy;
 
+    tripInfoElement.textContent = `At that time of year, you can expect a daily high of between ${dailyHigh}. There would typically be ${dryDays} dry days, ${showerDays} days with showers, and ${rainyDays} days that are rainy.`;
+}
 
 // Function to generate a gradient of colors based on a single color
 function generateColorGradient(baseColor, numSteps) {
@@ -193,7 +277,7 @@ function renderRainfallChartForMultipleYears(dates, rainfalls) {
     const baseColor = { r: 54, g: 162, b: 235 }; // Base color for the gradient
     const gradientColors = generateColorGradient(baseColor, numYears);
     const rainfallChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
             labels: Array.from({ length: numDataPoints }, (_, index) => index), // Use indices as labels
             datasets: rainfalls.map((rain, index) => ({
@@ -213,7 +297,7 @@ function renderRainfallChartForMultipleYears(dates, rainfalls) {
                 y: {
                     title: {
                         display: true,
-                        text: 'Daily Rainfall (mm)',
+                        text: 'precipitation_hours',
                     },
                 },
                 x: {
@@ -231,3 +315,32 @@ function renderRainfallChartForMultipleYears(dates, rainfalls) {
     });
 }
 
+// Function to render pie chart for average rainfall categories
+function renderPieChart(averageRainfallCategories) {
+    const ctx = document.getElementById('pieChart').getContext('2d');
+    const labels = Object.keys(averageRainfallCategories);
+    const data = Object.values(averageRainfallCategories);
+
+    const pieChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+            }]
+        },
+        options: {
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Average Rainfall Categories',
+                    fontSize: 16,
+                },
+                legend: {
+                    position: 'right',
+                }
+            },
+        }
+    });
+}
