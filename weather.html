@@ -4,9 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>City Selector</title>
+    <title>What's the weather like?</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.js"
+        integrity="sha256-UgvvN8vBkgO0luPSUl2s8TIlOSYRoGFAX4jlCIm9Adc=" crossorigin="anonymous"></script>
     <style>
         .waffle-chart-container {
             display: flex;
@@ -41,12 +43,14 @@
             background-color: yellow;
         }
     </style>
+
 </head>
 
 <body>
     <div class="container mt-5">
+        <h1>What's the weather like?</h1>
         <div class="row justify-content-center">
-            <div class="col-md-6">
+            <div class="col">
                 <label for="cityInput">City Name</label>
                 <input type="text" id="cityInput" class="form-control mb-3" placeholder="Enter city name">
 
@@ -58,52 +62,67 @@
                 <label for="numberOfDays">Number of Days</label>
                 <input type="number" id="numberOfDays" class="form-control mt-3" placeholder="Number of days" value="7">
 
-                <button id="getWeatherBtn1" class="btn btn-primary mt-3">Get Multiple Historic Weather</button>
+                <button id="getWeatherBtn1" class="btn btn-primary mt-3">Get Historic Weather Summary</button>
+                <div class="d-none" id="tripInfoTableContainer">
+                    <p> </p>
+                    <h3 class="mt-4 pt-4">10-year Historic Temperatures</h3>
+                    <div class="table-responsive">
+                        <table class="table" id="tripInfoTable">
+                            <tbody>
+                                <tr>
+                                    <td>Typical Daily High</td>
+                                    <td id="medianDailyTemperature"></td>
+                                </tr>
+                                <tr>
+                                    <td>Typical Daily High Range<br>
+                                        <small>Median +/- 1 SD</small>
+                                    </td>
+                                    <td id="typicalDailyHighRange"></td>
+                                </tr>
+                                <tr>
+                                    <td>Max Daily High</td>
+                                    <td id="maxDailyHigh"></td>
+                                </tr>
+                                <tr>
+                                    <td>Min Daily High</td>
+                                    <td id="minDailyHigh"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="temperatureChartContainer" style="height:400px" class="mt-3">
 
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+                    <p> </p>
+                    <h3 class="mt-4 pt-4">10-year Historic Rainy-ness</h3>
+                    <div class="table-responsive">
+                        <table class="table" id="tripInfoTable">
+                            <tbody>
+                                <tr>
+                                    <td>Typical Dry Days</td>
+                                    <td id="typicalDryDays"></td>
+                                </tr>
+                                <tr>
+                                    <td>Typical Days with Shower</td>
+                                    <td id="typicalDaysWithShower"></td>
+                                </tr>
+                                <tr>
+                                    <td>Typical Rainy Days</td>
+                                    <td id="typicalRainyDays"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="barChartContainer" class="mt-3" style="height:400px">
 
-                <table class="table" id="tripInfoTable" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Weather Metric</th>
-                            <th>Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Typical Daily High Range</td>
-                            <td id="typicalDailyHighRange"></td>
-                        </tr>
-                        <tr>
-                            <td>Max Daily High</td>
-                            <td id="maxDailyHigh"></td>
-                        </tr>
-                        <tr>
-                            <td>Min Daily High</td>
-                            <td id="minDailyHigh"></td>
-                        </tr>
-                        <tr>
-                            <td>Typical Dry Days</td>
-                            <td id="typicalDryDays"></td>
-                        </tr>
-                        <tr>
-                            <td>Typical Days with Shower</td>
-                            <td id="typicalDaysWithShower"></td>
-                        </tr>
-                        <tr>
-                            <td>Typical Rainy Days</td>
-                            <td id="typicalRainyDays"></td>
-                        </tr>
-                    </tbody>
-                </table>
+                        <canvas id="barChart"></canvas>
 
-                <div id="temperatureChartContainer" class="mt-3">
-                    <canvas id="temperatureChart"></canvas>
+                    </div>
+                    <small><strong>Dry</strong>: less than 1 hour of rainfall per day | <strong>Showers</strong>:
+                        less than 6 hours of rain per day |
+                        <strong>Rainy</strong>: more than 5 hours per day</small>
                 </div>
-
-                <div id="barChartContainer" class="mt-3">
-                    <canvas id="barChart"></canvas>
-                </div>
-
             </div>
         </div>
     </div>

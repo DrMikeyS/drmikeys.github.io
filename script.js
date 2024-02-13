@@ -215,23 +215,43 @@ function calculateMaxTemperatureRange(dailyMaxTemperatures) {
 
 // Function to display trip information
 function displayTripInfo(temperatureRange, rainfallCategories, allMaxTemperatures) {
-    const expectedTemperatureRange = calculateMaxTemperatureRange(allMaxTemperatures)
+    const expectedTemperatureRange = calculateMaxTemperatureRange(allMaxTemperatures);
     const tripInfoTableElement = document.getElementById('tripInfoTable');
-    const dailyHigh = `${temperatureRange.lowerRange.toFixed(1)}-${temperatureRange.upperRange.toFixed(1)}°C`;
-    const dryDays = rainfallCategories.Dry;
-    const showerDays = rainfallCategories.Shower;
-    const rainyDays = rainfallCategories.Rainy;
+    const dailyHigh = `${temperatureRange.lowerRange.toFixed(0)}-${temperatureRange.upperRange.toFixed(0)}°C`;
+    const medianTemperature = calculateMedianTemperature(allMaxTemperatures).toFixed(0); // Calculate median temperature
+    const totalDays = Object.values(rainfallCategories).reduce((acc, val) => acc + val, 0); // Calculate total days
+    const dryDaysPercentage = ((rainfallCategories.Dry / totalDays) * 100).toFixed(0); // Calculate dry days percentage
+    const showeryDaysPercentage = ((rainfallCategories.Shower / totalDays) * 100).toFixed(0); // Calculate showery days percentage
+    const rainyDaysPercentage = ((rainfallCategories.Rainy / totalDays) * 100).toFixed(0); // Calculate rainy days percentage
 
     // Populate table cells
     document.getElementById('typicalDailyHighRange').textContent = dailyHigh;
-    document.getElementById('maxDailyHigh').textContent = `${expectedTemperatureRange.maxTemperature}°C`;
-    document.getElementById('minDailyHigh').textContent = `${expectedTemperatureRange.minTemperature}°C`;
-    document.getElementById('typicalDryDays').textContent = dryDays;
-    document.getElementById('typicalDaysWithShower').textContent = showerDays;
-    document.getElementById('typicalRainyDays').textContent = rainyDays;
+    document.getElementById('maxDailyHigh').textContent = `${expectedTemperatureRange.maxTemperature.toFixed(0)}°C`;
+    document.getElementById('minDailyHigh').textContent = `${expectedTemperatureRange.minTemperature.toFixed(0)}°C`;
+    document.getElementById('medianDailyTemperature').textContent = `${medianTemperature}°C`; // Add median temperature row
+    document.getElementById('typicalDryDays').textContent = `${dryDaysPercentage}%`;
+    document.getElementById('typicalDaysWithShower').textContent = `${showeryDaysPercentage}%`;
+    document.getElementById('typicalRainyDays').textContent = `${rainyDaysPercentage}%`;
 
-    tripInfoTableElement.style.display = 'block';
+    $("#tripInfoTableContainer").addClass('d-block').removeClass('d-none');
 }
+
+
+// Function to calculate the median temperature from the array of all maximum temperatures
+function calculateMedianTemperature(allMaxTemperatures) {
+    const flattenedTemperatures = allMaxTemperatures.flat(); // Flatten the array of temperatures
+    const sortedTemperatures = flattenedTemperatures.sort((a, b) => a - b); // Sort the temperatures
+    const medianIndex = Math.floor(sortedTemperatures.length / 2); // Find the index of the median temperature
+
+    if (sortedTemperatures.length % 2 === 0) {
+        // If the number of temperatures is even, calculate the average of the two middle temperatures
+        return (sortedTemperatures[medianIndex - 1] + sortedTemperatures[medianIndex]) / 2;
+    } else {
+        // If the number of temperatures is odd, return the middle temperature
+        return sortedTemperatures[medianIndex];
+    }
+}
+
 
 // Function to generate a gradient of colors based on a single color
 function generateColorGradient(baseColor, numSteps) {
@@ -244,8 +264,11 @@ function generateColorGradient(baseColor, numSteps) {
     }
     return colors;
 }
+
+
+
 var temperatureChart; // Declare temperatureChart variable
-// Function to render temperature chart with data for multiple years
+
 // Function to render temperature chart with data for multiple years
 function renderTemperatureChartForMultipleYears(dates, temperatures) {
     const combinedDates = dates.flat().map(date => new Date(date)); // Combine dates from all years
@@ -253,31 +276,48 @@ function renderTemperatureChartForMultipleYears(dates, temperatures) {
     const numDataPoints = parsedDates.length; // Number of data points across all years
     const ctx = document.getElementById('temperatureChart').getContext('2d');
     const numYears = temperatures.length;
-    const baseColor = { r: 255, g: 99, b: 132 }; // Base color for the gradient
-    const gradientColors = generateColorGradient(baseColor, numYears);
 
-
+    // Destroy the previous chart if it exists
     if (temperatureChart) {
-        temperatureChart.clear();
         temperatureChart.destroy();
     }
 
+    // Calculate the median temperature line
+    const medianTemperatures = temperatures.reduce((acc, temps) => {
+        temps.forEach((temp, index) => {
+            acc[index] = (acc[index] || 0) + temp;
+        });
+        return acc;
+    }, []).map(tempSum => tempSum / numYears);
 
+    // Create a new chart
     temperatureChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: Array.from({ length: numDataPoints }, (_, index) => index), // Use indices as labels
-            datasets: temperatures.map((temps, index) => ({
-                label: `${new Date(dates[index][0]).getFullYear()}`,
-                data: temps,
-                borderColor: gradientColors[index],
-                backgroundColor: `rgba(255, 255, 255, 0)`,
-            }))
+            datasets: [
+                {
+                    label: 'Median',
+                    data: medianTemperatures,
+                    borderColor: 'rgba(0, 0, 0, 0.8)', // Darker color for the median line
+                    backgroundColor: 'rgba(0, 0, 0, 0)', // Transparent background
+                    borderWidth: 2 // Increase the line width for better visibility
+                },
+                ...temperatures.map((temps, index) => ({
+                    label: `${new Date(dates[index][0]).getFullYear()}`,
+                    data: temps,
+                    borderColor: `rgba(255, 99, 132, 0.5)`, // Same color for all years
+                    backgroundColor: `rgba(255, 99, 132, 0.1)`, // Transparent background
+                    borderWidth: 1 // Default line width
+                }))
+            ]
         },
         options: {
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: false,
+                    display: true,
+                    position: 'top'
                 }
             },
             scales: {
@@ -301,6 +341,7 @@ function renderTemperatureChartForMultipleYears(dates, temperatures) {
         },
     });
 }
+
 
 
 // Function to group wet, dry, and showery days for each year
@@ -368,6 +409,7 @@ function renderStackedBarChartForYears(rainfallData, historicWeatherData) {
             ]
         },
         options: {
+            maintainAspectRatio: false,
             plugins: {
                 title: {
                     display: true,
