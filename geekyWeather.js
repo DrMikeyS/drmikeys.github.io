@@ -64,9 +64,15 @@ function processData(hourlyData) {
             processedData.forEach(interval => {
                 const weatherCode = interval[memberKey];
                 switch (weatherCode) {
-                    //Light cloud
+                    //Clear
+                    case 0:
+                    case 1:
                     case 2:
-                        interval[memberKey] = 1;
+                        interval[memberKey] = 3;
+                        break;
+                    //Heavy Cloud
+                    case 3:
+                        interval[memberKey] = 2;
                         break;
                     //Light rain
                     case 50:
@@ -74,7 +80,7 @@ function processData(hourlyData) {
                     case 60:
                     case 61:
                     case 80:
-                        interval[memberKey] = 4;
+                        interval[memberKey] = 1;
                         break;
                     //Heavy rain
                     case 52:
@@ -87,7 +93,7 @@ function processData(hourlyData) {
                     case 64:
                     case 65:
                     case 82:
-                        interval[memberKey] = 5;
+                        interval[memberKey] = 0;
                         break;
                     default:
                         break;
@@ -251,7 +257,7 @@ function createChart(metricType, labels, meanData, plusOneSdData, minusOneSdData
         chart.options.scales.y.max = maxY;
     } else if (yMinMax) {
         chart.options.scales.y.min = 0
-        chart.options.scales.y.max = 5
+        chart.options.scales.y.max = 3
     }
 
     if (yLabels) {
@@ -346,32 +352,31 @@ function generateWeatherCodeChart(days = 3) {
             var boxes = [
                 {
                     //Grey skies
-                    yMin: 1.5,
+                    yMin: 2,
                     yMax: 2.5,
                     backgroundColor: 'rgb(242, 244, 248)',
                 },
                 {
                     //Darker Grey skies
-                    yMin: 2.5,
-                    yMax: 3.5,
+                    yMin: 1.25,
+                    yMax: 2,
                     backgroundColor: 'rgb(200, 200, 200)'
                 },
                 {
                     //Light rain
-                    yMin: 3.5,
-                    yMax: 4.5,
+                    yMin: 0.5,
+                    yMax: 1.25,
                     backgroundColor: 'rgb(195, 206, 247)'
                 },
                 {
                     //Heavy rain
-                    yMin: 4.5,
-                    yMax: 5.5,
+                    yMin: 0,
+                    yMax: 0.5,
                     backgroundColor: 'rgb(154, 173, 245)'
                 }
             ]
             var yLabels = {
-                0: 'Clear', 1: 'L. Cloud', 2: 'M. Cloud', 3: 'H. Cloud', 4: 'L. Rain',
-                5: 'H. Rain'
+                0: 'H. Rain', 1: 'L. Rain', 2: 'Cloudy', 3: 'Clear'
             }
             const statistics = processData(data.hourly)['statistics'];
             const labels = statistics.map(interval => interval.time);
